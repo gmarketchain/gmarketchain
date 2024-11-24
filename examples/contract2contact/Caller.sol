@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {GMarketAuction} from "./GMarketAuction.sol";
+import {Callee} from "./Callee.sol";
 
-contract GMarketAuctionCaller {
+contract Caller {
 
-    GMarketAuction auction;
+    Callee auction;
 
     constructor(address counterAddress) {
-        auction = GMarketAuction(counterAddress);
+        auction = Callee(counterAddress);
     }
 
     function increment() external {
