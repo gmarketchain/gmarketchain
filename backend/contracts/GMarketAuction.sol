@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {IGMarketInventory} from "./inventory/IGMarketInventory.sol";
+
 contract GMarketAuction {
 
     struct Lot {
         uint id;
         address seller;
-        string itemId;
+        address marketAddress;
+        uint256 itemId;
         uint price;
     }
 
@@ -14,6 +17,8 @@ contract GMarketAuction {
     uint public _lastLotId;
     uint[] public _lotIds;
     address[] public _sellers;
+    address[] public _marketAddresses;
+    mapping(address => IGMarketInventory) public _markets;
     mapping(uint => Lot) public _lots;
     mapping(address => uint[]) public _sellerLotIds;
 
@@ -21,13 +26,27 @@ contract GMarketAuction {
         _owner = msg.sender;
     }
 
-    function createLot(string memory itemId, uint price) external returns (uint) {
-        return createLotInternal(msg.sender, itemId, price);
+    function addMarket(address marketAddress) external {
+        require(_owner == msg.sender, "You are not the owner of the contract");
+        require(address(_markets[marketAddress]) == address(0), "Market already exists");
+        _marketAddresses.push(marketAddress);
+        _markets[marketAddress] = IGMarketInventory(marketAddress);
     }
 
-    function createLot(address seller, string memory itemId, uint price) external returns (uint) {
+    function removeMarket(address marketAddress) external {
         require(_owner == msg.sender, "You are not the owner of the contract");
-        return createLotInternal(seller, itemId, price);
+        require(address(_markets[marketAddress]) != address(0), "Market not found");
+        deleteElement(_marketAddresses, marketAddress);
+        delete _markets[marketAddress];
+    }
+
+    function createLot(address marketAddress, uint256 itemId, uint price) external returns (uint) {
+        return createLotInternal(marketAddress, msg.sender, itemId, price);
+    }
+
+    function createLot(address marketAddress, address seller, uint256 itemId, uint price) external returns (uint) {
+        require(_owner == msg.sender, "You are not the owner of the contract");
+        return createLotInternal(marketAddress, seller, itemId, price);
     }
 
     function cancelLot(uint lotId) external {
@@ -56,14 +75,17 @@ contract GMarketAuction {
         return _sellers;
     }
 
-    function createLotInternal(address seller, string memory itemId, uint price) internal returns (uint) {
+    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint price) internal returns (uint) {
+        IGMarketInventory market = _markets[marketAddress];
+        require(address(market) != address(0) , "Market does not exists");
         uint lotId = ++_lastLotId;
         _lotIds.push(lotId);
-        _lots[lotId] = Lot({id: lotId, seller: seller, itemId: itemId, price: price});
+        _lots[lotId] = Lot({id: lotId, seller: seller, marketAddress: marketAddress, itemId: itemId, price: price});
         _sellerLotIds[seller].push(lotId);
         if (_sellerLotIds[seller].length == 1) {
             _sellers.push(seller);
         }
+        market.safeTransferFrom(seller, _owner, itemId, 1, "");
         return lotId;
     }
 
@@ -73,10 +95,12 @@ contract GMarketAuction {
         require(lot.seller == seller, "Wrong seller specified");
         delete _lots[lotId];
         deleteElement(_lotIds, lotId);
-        deleteElement(_sellerLotIds[msg.sender], lotId);
-        if (_sellerLotIds[msg.sender].length == 0) {
-            deleteElement(_sellers, msg.sender);
+        deleteElement(_sellerLotIds[seller], lotId);
+        if (_sellerLotIds[seller].length == 0) {
+            deleteElement(_sellers, seller);
         }
+        IGMarketInventory market = _markets[lot.marketAddress];
+        market.safeTransferFrom(address(this), lot.seller, lot.itemId, 1, "");
     }
 
     function getLotsBySellerInternal(address seller) internal view returns (Lot[] memory) {
@@ -114,5 +138,14 @@ contract GMarketAuction {
                 }
             }
         }
+    }
+
+    function existsElement(address[] storage array, address value) internal view returns (bool) {
+        for (uint i = 0; i < array.length; i++) {
+            if (array[i] == value) {
+                return true;
+            }
+        }
+        return false;
     }
 }
