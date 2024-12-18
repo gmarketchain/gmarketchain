@@ -10,6 +10,7 @@ contract GMarketAuction {
         address seller;
         address marketAddress;
         uint256 itemId;
+        uint256 itemCount;
         uint price;
     }
 
@@ -17,8 +18,6 @@ contract GMarketAuction {
     uint public _lastLotId;
     uint[] public _lotIds;
     address[] public _sellers;
-    address[] public _marketAddresses;
-    mapping(address => IGMarketInventory) public _markets;
     mapping(uint => Lot) public _lots;
     mapping(address => uint[]) public _sellerLotIds;
 
@@ -26,27 +25,13 @@ contract GMarketAuction {
         _owner = msg.sender;
     }
 
-    function addMarket(address marketAddress) external {
-        require(_owner == msg.sender, "You are not the owner of the contract");
-        require(address(_markets[marketAddress]) == address(0), "Market already exists");
-        _marketAddresses.push(marketAddress);
-        _markets[marketAddress] = IGMarketInventory(marketAddress);
+    function createLot(address marketAddress, uint256 itemId, uint256 itemCount, uint price) external returns (uint) {
+        return createLotInternal(marketAddress, msg.sender, itemId, itemCount, price);
     }
 
-    function removeMarket(address marketAddress) external {
+    function createLot(address marketAddress, address seller, uint256 itemId, uint256 itemCount, uint price) external returns (uint) {
         require(_owner == msg.sender, "You are not the owner of the contract");
-        require(address(_markets[marketAddress]) != address(0), "Market not found");
-        deleteElement(_marketAddresses, marketAddress);
-        delete _markets[marketAddress];
-    }
-
-    function createLot(address marketAddress, uint256 itemId, uint price) external returns (uint) {
-        return createLotInternal(marketAddress, msg.sender, itemId, price);
-    }
-
-    function createLot(address marketAddress, address seller, uint256 itemId, uint price) external returns (uint) {
-        require(_owner == msg.sender, "You are not the owner of the contract");
-        return createLotInternal(marketAddress, seller, itemId, price);
+        return createLotInternal(marketAddress, seller, itemId, itemCount, price);
     }
 
     function cancelLot(uint lotId) external {
@@ -75,17 +60,17 @@ contract GMarketAuction {
         return _sellers;
     }
 
-    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint price) internal returns (uint) {
-        IGMarketInventory market = _markets[marketAddress];
+    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint256 itemCount, uint price) internal returns (uint) {
+        IGMarketInventory market = IGMarketInventory(marketAddress);
         require(address(market) != address(0) , "Market does not exists");
         uint lotId = ++_lastLotId;
         _lotIds.push(lotId);
-        _lots[lotId] = Lot({id: lotId, seller: seller, marketAddress: marketAddress, itemId: itemId, price: price});
+        _lots[lotId] = Lot({id: lotId, seller: seller, marketAddress: marketAddress, itemId: itemId, itemCount: itemCount, price: price});
         _sellerLotIds[seller].push(lotId);
         if (_sellerLotIds[seller].length == 1) {
             _sellers.push(seller);
         }
-        market.safeTransferFrom(seller, _owner, itemId, 1, "");
+        market.safeTransferFrom(seller, _owner, itemId, itemCount, "");
         return lotId;
     }
 
@@ -99,8 +84,8 @@ contract GMarketAuction {
         if (_sellerLotIds[seller].length == 0) {
             deleteElement(_sellers, seller);
         }
-        IGMarketInventory market = _markets[lot.marketAddress];
-        market.safeTransferFrom(address(this), lot.seller, lot.itemId, 1, "");
+        IGMarketInventory market = IGMarketInventory(lot.marketAddress);
+        market.safeTransferFrom(_owner, seller, lot.itemId, lot.itemCount, "");
     }
 
     function getLotsBySellerInternal(address seller) internal view returns (Lot[] memory) {
