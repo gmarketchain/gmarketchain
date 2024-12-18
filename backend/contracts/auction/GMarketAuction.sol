@@ -76,8 +76,8 @@ contract GMarketAuction is ERC1155Holder {
         return _sellers;
     }
 
-    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint256 itemCount, uint256 pricePerItem) internal returns (uint256) {
-        uint256 lotId = ++_lastLotId;
+    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint256 itemCount, uint256 pricePerItem) internal returns (uint256 lotId) {
+        lotId = ++_lastLotId;
         _lotIds.push(lotId);
         _lots[lotId] = Lot({
             id: lotId,
@@ -93,7 +93,6 @@ contract GMarketAuction is ERC1155Holder {
         }
         IERC1155 market = IERC1155(marketAddress);
         market.safeTransferFrom(seller, address(this), itemId, itemCount, "");
-        return lotId;
     }
 
     function purchaseLotInternal(address buyer, uint256 lotId) internal {
