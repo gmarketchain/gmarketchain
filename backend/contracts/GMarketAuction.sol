@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+
 import {IGMarketInventory} from "./inventory/IGMarketInventory.sol";
 
-contract GMarketAuction {
+contract GMarketAuction is ERC1155Holder {
 
     struct Lot {
         uint id;
@@ -11,7 +13,7 @@ contract GMarketAuction {
         address marketAddress;
         uint256 itemId;
         uint256 itemCount;
-        uint price;
+        uint256 pricePerItem;
     }
 
     address public _owner;
@@ -60,17 +62,17 @@ contract GMarketAuction {
         return _sellers;
     }
 
-    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint256 itemCount, uint price) internal returns (uint) {
+    function createLotInternal(address marketAddress, address seller, uint256 itemId, uint256 itemCount, uint pricePerItem) internal returns (uint) {
         IGMarketInventory market = IGMarketInventory(marketAddress);
         require(address(market) != address(0) , "Market does not exists");
         uint lotId = ++_lastLotId;
         _lotIds.push(lotId);
-        _lots[lotId] = Lot({id: lotId, seller: seller, marketAddress: marketAddress, itemId: itemId, itemCount: itemCount, price: price});
+        _lots[lotId] = Lot({id: lotId, seller: seller, marketAddress: marketAddress, itemId: itemId, itemCount: itemCount, pricePerItem: pricePerItem});
         _sellerLotIds[seller].push(lotId);
         if (_sellerLotIds[seller].length == 1) {
             _sellers.push(seller);
         }
-        market.safeTransferFrom(seller, _owner, itemId, itemCount, "");
+        market.safeTransferFrom(seller, address(this), itemId, itemCount, "");
         return lotId;
     }
 
@@ -85,7 +87,7 @@ contract GMarketAuction {
             deleteElement(_sellers, seller);
         }
         IGMarketInventory market = IGMarketInventory(lot.marketAddress);
-        market.safeTransferFrom(_owner, seller, lot.itemId, lot.itemCount, "");
+        market.safeTransferFrom(address(this), seller, lot.itemId, lot.itemCount, "");
     }
 
     function getLotsBySellerInternal(address seller) internal view returns (Lot[] memory) {
