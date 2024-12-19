@@ -1,0 +1,13 @@
+title Seller
+
+activate Seller
+Seller->GameInventory: setApprovalForAll(auctionContract, true)
+Seller->Auction: createLot(gameInventoryContract, itemId, itemCount, pricePerItem)
+activate Auction
+Seller<--Auction: lotId
+deactivate Auction
+deactivate Seller
+
+alt
+  Seller->Auction: cancelLot(lotId)
+end
