@@ -1,0 +1,38 @@
+title Seller
+
+participant Seller
+participant GameInventory
+
+participant Auction
+
+
+activate Seller
+Seller->GameInventory: setApprovalForAll(auctionContract, true)
+activate GameInventory
+Seller<--GameInventory:
+deactivate GameInventory
+
+
+Seller->Auction: createLot(gameInventoryContract, itemId, itemCount, pricePerItem)
+activate Auction
+Auction->GameInventory: safeTransferFrom(seller, auctionContract, itemId, itemCount)
+activate GameInventory
+Auction<--GameInventory:
+deactivate GameInventory
+
+Seller<--Auction: lotId
+deactivate Auction
+deactivate Seller
+
+alt lot cancel
+  activate Seller
+  Seller->Auction: cancelLot(lotId)
+  activate Auction
+  Auction->GameInventory: safeTransferFrom(auctionContract, seller, itemId, itemCount)
+  activate GameInventory
+  Auction<--GameInventory:
+  deactivate GameInventory
+  Seller<--Auction:
+  deactivate Auction
+  deactivate Seller
+end

@@ -1,0 +1,41 @@
+title Buyer
+
+participant Buyer
+participant Coin
+
+
+participant GameInventory
+
+participant Auction
+
+
+
+activate Buyer
+Buyer->Auction: getLots()
+activate Auction
+Buyer<--Auction: [{lotId, gameInventoryContract, seller, itemId, itemCount, pricePerItem}, ...]
+deactivate Auction
+
+
+Buyer->Coin: approve(auctionContract, totalAmount)
+activate Coin
+Buyer<--Coin:
+deactivate Coin
+
+Buyer->Auction: purchaseLot(lotId)
+activate Auction
+
+Auction->Coin: safeTransferFrom(buyer, seller, totalAmount)
+activate Coin
+Auction<--Coin:
+deactivate Coin
+
+Auction->GameInventory: safeTransferFrom(auctionContract, seller, itemId, itemCount)
+activate GameInventory
+Auction<--GameInventory:
+deactivate GameInventory
+
+Buyer<--Auction:
+deactivate Auction
+
+deactivate Buyer
