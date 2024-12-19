@@ -12,30 +12,31 @@ contract GMarketAuction is ERC1155Holder {
     struct Lot {
         uint256 id;
         address seller;
-        address marketAddress;
+        address gameInventoryAddress;
         uint256 itemId;
         uint256 itemCount;
         uint256 pricePerItem;
     }
+
     address public _owner;
-    IERC20 public _token;
+    IERC20 public _coin;
 
     uint256 public _lastLotId;
     uint256[] public _lotIds;
     mapping(uint256 => Lot) public _lots;
 
-    constructor(address tokenAddress) {
+    constructor(address coinAddress) {
         _owner = msg.sender;
-        _token = IERC20(tokenAddress);
+        _coin = IERC20(coinAddress);
     }
 
     function createLot(
-        address marketAddress,
+        address gameInventoryAddress,
         uint256 itemId,
         uint256 itemCount,
-        uint256 price
+        uint256 pricePerItem
     ) external returns (uint256) {
-        return _createLot(marketAddress, msg.sender, itemId, itemCount, price);
+        return _createLot(gameInventoryAddress, msg.sender, itemId, itemCount, pricePerItem);
     }
 
     function purchaseLot(uint256 lotId) external {
@@ -54,7 +55,7 @@ contract GMarketAuction is ERC1155Holder {
     }
 
     function _createLot(
-        address marketAddress,
+        address gameInventoryAddress,
         address seller,
         uint256 itemId,
         uint256 itemCount,
@@ -65,13 +66,13 @@ contract GMarketAuction is ERC1155Holder {
         _lots[lotId] = Lot({
             id: lotId,
             seller: seller,
-            marketAddress: marketAddress,
+            gameInventoryAddress: gameInventoryAddress,
             itemId: itemId,
             itemCount: itemCount,
             pricePerItem: pricePerItem
         });
-        IERC1155 market = IERC1155(marketAddress);
-        market.safeTransferFrom(seller, address(this), itemId, itemCount, "");
+        IERC1155 gameInventory = IERC1155(gameInventoryAddress);
+        gameInventory.safeTransferFrom(seller, address(this), itemId, itemCount, "");
     }
 
     function _purchaseLot(address buyer, uint256 lotId) internal {
@@ -79,9 +80,9 @@ contract GMarketAuction is ERC1155Holder {
         require(lot.id != 0, "Lot not found");
         delete _lots[lotId];
         _deleteElement(_lotIds, lotId);
-        IERC1155 market = IERC1155(lot.marketAddress);
-        market.safeTransferFrom(address(this), buyer, lot.itemId, lot.itemCount, "");
-        _token.safeTransferFrom(buyer, lot.seller, lot.itemCount * lot.pricePerItem);
+        IERC1155 gameInventory = IERC1155(lot.gameInventoryAddress);
+        gameInventory.safeTransferFrom(address(this), buyer, lot.itemId, lot.itemCount, "");
+        _coin.safeTransferFrom(buyer, lot.seller, lot.itemCount * lot.pricePerItem);
     }
 
     function _cancelLot(address seller, uint256 lotId) internal {
@@ -90,8 +91,8 @@ contract GMarketAuction is ERC1155Holder {
         require(lot.seller == seller, "Wrong seller specified");
         delete _lots[lotId];
         _deleteElement(_lotIds, lotId);
-        IERC1155 market = IERC1155(lot.marketAddress);
-        market.safeTransferFrom(address(this), lot.seller, lot.itemId, lot.itemCount, "");
+        IERC1155 gameInventory = IERC1155(lot.gameInventoryAddress);
+        gameInventory.safeTransferFrom(address(this), lot.seller, lot.itemId, lot.itemCount, "");
     }
 
     function _deleteElement(uint256[] storage array, uint256 value) internal {
